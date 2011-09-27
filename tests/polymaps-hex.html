@@ -1,0 +1,330 @@
+<html>
+	<head>
+		<title>D3.js, libhex, and Polymaps</title>
+		
+		<!-- styles -->
+		<link rel="stylesheet" type="text/css" href="../style/main.css" />
+		<link rel="stylesheet" type="text/css" href="../style/colorbrewer.css" />
+		<link rel="stylesheet" type="text/css" href="../style/colorbrewer.stroke.css" />
+		
+		<style type="text/css">
+			
+			@import url("http://polymaps.org/style.css");
+			
+			div.map {
+				width: 600px;
+				height: 600px;
+				margin-right: 15px;
+				float: left;
+			}
+			
+			svg {
+  				display: block;
+			}
+
+			circle {
+  				stroke: black;
+  				fill: red;
+  				fill-opacity: 1;
+			}
+			
+		</style>
+		
+		<!-- external libraries ( d3.js, polymaps, and HEX.js ) -->
+		<script type="text/javascript" src="../lib/d3.js"></script>
+		<script type="text/javascript" src="../lib/d3.geo.js"></script>
+		<script type="text/javascript" src="../lib/polymaps.js"></script>
+		<script type="text/javascript" src="../lib/hex.js"></script>
+		
+		<!-- indiemaps hexgrid layout -->
+		<script type="text/javascript" src="../src/d3.hexbin.js"></script>
+		
+		<script type="text/javascript">
+			
+			var po = org.polymaps,
+				hexI = 25, xRange = [50,550], yRange = [50,550],
+				map, focusMap, data, scale, countMax,
+				numClasses = 9,
+				cbScheme = "RdYlBu",
+				focusPointLayer, focusHex, focusNonHex;
+			
+			function init()
+			{
+				create_basemaps();
+				load_json();
+			};
+			
+			function create_basemaps()
+			{
+				map = po.map()
+					.container( d3.select( "#overviewMap" ).append( "svg:svg" ).node() );
+					
+				map.add(po.image()
+    				.url(po.url("http://{S}tile.cloudmade.com"
+    				+ "/1a1b06b230af4efdbb989ea99e9841af" // http://cloudmade.com/register
+    				+ "/999/256/{Z}/{X}/{Y}.png")
+    				.hosts(["a.", "b.", "c.", ""])));
+    			
+    			focusMap = po.map()
+    				.container( d3.select( "#focusMap" ).append( "svg:svg" ).node() );
+    				
+    			focusMap.add(po.image()
+    				.url(po.url("http://{S}tile.cloudmade.com"
+    				+ "/1a1b06b230af4efdbb989ea99e9841af" // http://cloudmade.com/register
+    				+ "/999/256/{Z}/{X}/{Y}.png")
+    				.hosts(["a.", "b.", "c.", ""])));
+    			
+    			var focusHexLayer = d3.select( "#focusMap svg" ).insert( "svg:g" );
+    			
+    			focusNonHex = focusHexLayer.append( "svg:path" )
+    				.attr( "stroke", "none" )
+    				.attr( "fill", "white" )
+    				.attr( "fill-rule", "evenodd" )
+    				.attr( "fill-opacity", .75 );
+    			
+    			focusHex = focusHexLayer.append( "svg:path" )
+    				.attr( "class", "hexagon" )
+					.attr( "stroke", "none" )
+					.attr( "stroke-width", 5 )
+					.attr( "fill", "none" );
+					
+				
+    			focusPointLayer = d3.select( "#focusMap svg" ).insert( "svg:g" );
+			}
+			
+			
+			function load_json()
+			{
+				d3.json( "../data/json/crime-data-downtown.json", function( d )
+				{
+					data = d;
+					var bounds = d3.geo.bounds( data );
+					map.center( 
+						{lat: (bounds[0][1] + bounds[1][1])/2, lon: (bounds[1][0] + bounds[0][0])/2 }
+					).zoom(11.5);
+					
+					focusMap.center( 
+						{lat: (bounds[0][1] + bounds[1][1])/2, lon: (bounds[1][0] + bounds[0][0])/2 }
+					).zoom(15.5);
+					
+					// draw_raw_points();
+					generate_hexgrid();
+					generate_hexgrid_representations();
+				});
+			}
+			
+			function draw_raw_points()
+			{
+				var layer = d3.select( "#overviewMap svg" ).insert( "svg:g" );
+				
+				var marker = layer.selectAll( "circle" )
+						.data( data.features )
+					.enter().append( "svg:circle" )
+						.attr( "r", 1.5 )
+						.attr( "cx", function(d) { return map.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).x; } )
+						.attr( "cy", function(d) { return map.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).y; } );
+			};
+			
+			
+			  
+			function generate_hexgrid()
+			{
+				hexset = d3.layout.hexbin()
+					.xValue( function(d) { return map.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).x; } )
+					.yValue( function(d) { return map.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).y; } )
+					.xRange( xRange )
+					.yRange( yRange )
+					.hexI( hexI )
+						( data.features );
+						
+				countMax = d3.max( hexset, function(d) { return d.data.length; } );	
+				
+				scale = d3.scale.quantize()
+   					.domain( [0,countMax] )
+   					.range( d3.range( numClasses) );	
+			}
+			
+			function generate_hexgrid_representations()
+			{
+				// draw_hexgrid();
+				// draw_choro_grid();
+				
+				draw_alpha_grid();
+			}
+			
+			function draw_hexgrid()
+			{
+				var layer = d3.select( "#overviewMap svg" ).insert( "svg:g" );
+				
+				var marker = layer.selectAll( "polygon" )
+						.data( hexset ) 
+					.enter().append( "svg:polygon" )
+						.attr( "class", "hexagon" )
+						.attr( "stroke", "#09c" )
+						.attr( "fill", function(d) { return "none"; })
+						.attr( "points", function(d) { return d.pointString; } );
+			};
+			
+			function draw_choro_grid()
+			{
+   					
+				var layer = d3.select( "#overviewMap svg" ).insert( "svg:g" ).attr( "class", cbScheme );
+				
+				var marker = layer.selectAll( "polygon" )
+						.data( hexset ) 
+					.enter().append( "svg:polygon" )
+						.attr( "stroke", "#f00" )
+						.attr( "class", function(d)
+   						{
+   							var c = 'q' + ( (numClasses-1) - scale(d.data.length)) + "-" + numClasses;
+   							return c;
+   						})
+   						.attr( "fill-opacity", .5 )
+						.attr( "points", function(d) { return d.pointString; } );
+			};
+			
+			function draw_alpha_grid()
+			{
+				var layer = d3.select( "#overviewMap svg" ).insert( "svg:g" );
+				
+				var marker = layer.selectAll( "polygon" )
+						.data( hexset ) 
+					.enter().append( "svg:polygon" )
+						.attr( "stroke", "none" )
+						.attr( "fill", "#000" )
+						.attr( "fill-opacity", function(d)
+						{
+							var opacity = ((numClasses-1)- scale(d.data.length)) / (numClasses-1);
+   							return opacity + .1;
+						} )
+						.attr( "points", function(d) { return d.pointString; } )
+						.on( "mouseover", function(d)
+						{
+							d3.select( this ).attr( "stroke", "#09c" ).attr( "stroke-width", 2 );
+							on_overviewHex_highlight(d);
+						})
+						.on( "mouseout", function(d)
+						{
+							d3.select( this ).attr( "stroke", "none" );
+						});
+			};
+			
+			function on_overviewHex_highlight( hex )
+			{
+				// center focus map on this hex
+				center_focusMap_on_hex( hex );
+				
+				// update focus hex
+				update_focusMap_hex( hex );
+				
+				// update focus points
+				update_focusMap_points_by_hex( hex );
+				
+			};
+			
+			function center_focusMap_on_hex( hex )
+			{
+				var center = hex.centre(),
+					x = xRange[0] + ( center.x * hexI - .5 * hexI ),
+					y = yRange[1] - ( center.y * hexI - .5 * hexI );
+							
+				var llCenter = map.pointLocation( { x : x, y : y } );
+							
+				focusMap.center(llCenter); 
+			};
+			
+			function update_focusMap_hex( hex )
+			{
+				var pathString = generate_pathString_from_points( hex.points );
+				
+				var extString = "M 0 0 L " + focusMap.size().x + " 0 " + focusMap.size().x + " " + focusMap.size().y + " 0 " + focusMap.size().y + " 0 0 Z";
+				
+				focusNonHex.attr( 'd', extString + ' ' + pathString );
+				focusHex.attr( 'd', pathString );
+			};
+			
+			function generate_pointString_from_points( points )
+			{
+				var i = 0, pt = points[i], pt_ll = map.pointLocation( pt ), pt_focus = focusMap.locationPoint( pt_ll );
+				
+				var pointString = pt_focus.x + ',' + pt_focus.y;
+				
+				while ( ++i < points.length )
+				{
+					pt = points[i], 
+					pt_ll = map.pointLocation( pt ), 
+					pt_focus = focusMap.locationPoint( pt_ll );
+					
+					pointString += " " + pt_focus.x + ',' + pt_focus.y;
+				}
+				
+				return pointString;
+			};
+			
+			function generate_pathString_from_points( points )
+			{
+				var i = 0, pt = points[i], pt_ll = map.pointLocation( pt ), pt_focus = focusMap.locationPoint( pt_ll );
+				
+				var pathString = "M " + pt_focus.x + " " + pt_focus.y + " L";
+				
+				while ( ++i < points.length )
+				{
+					pt = points[i], 
+					pt_ll = map.pointLocation( pt ), 
+					pt_focus = focusMap.locationPoint( pt_ll );
+					
+					pathString += " " + pt_focus.x + ' ' + pt_focus.y;
+				}
+				
+				return pathString;
+			};
+			
+			
+			function update_focusMap_points_by_hex( hex )
+			{
+				// select
+				var circles = focusPointLayer.selectAll( "circle" )
+					.data( hex.data );
+				
+				// enter
+				circles.enter().append( "svg:circle" )
+					.attr( "r", 3.5 )
+					.attr( "cx", function(d)
+					{
+						return focusMap.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).x;
+					})
+					.attr( "cy", function(d)
+					{
+						return focusMap.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).y;
+					});
+				
+				
+				// update
+				circles
+					.attr( "cx", function(d)
+					{
+						return focusMap.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).x;
+					})
+					.attr( "cy", function(d)
+					{
+						return focusMap.locationPoint( { lon: d.geometry.coordinates[0], lat: d.geometry.coordinates[1] } ).y;
+					});
+				
+				// exit
+				circles.exit()
+					.remove();
+			}
+			
+			
+			
+			
+		</script>
+		
+	</head>
+	
+	<body onload="init()">
+		<h1>Oakland Hexspotting</h1>
+		<div id="overviewMap" class="map"></div>
+		<div id="focusMap" class="map"></div>
+	</body>
+</html>

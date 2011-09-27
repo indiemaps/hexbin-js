@@ -1,0 +1,245 @@
+<html>
+	<head>
+		<title>Hexagonal binning layout 6 ways in d3.js</title>
+		
+		<!-- styles -->
+		<link rel="stylesheet" type="text/css" href="../style/main.css" />
+		<link rel="stylesheet" type="text/css" href="../style/colorbrewer.css" />
+		<link rel="stylesheet" type="text/css" href="../style/colorbrewer.stroke.css" />
+		
+		<!-- external libraries ( d3.js and HEX.js ) -->
+		<script type="text/javascript" src="../lib/d3.js"></script>
+		<script type="text/javascript" src="../lib/hex.js"></script>
+		
+		<!-- indiemaps hexgrid layout -->
+		<script type="text/javascript" src="../src/d3.hexbin.js"></script>
+		
+		<!-- internal script -->
+		<script type="text/javascript">
+			
+			var size 		= 600,
+				data 		= [],
+				numPoints 	= 2000,
+				hexset, 
+				countMax, 
+				scale,
+				numClasses = 9,
+				cbScheme = "RdYlBu",
+				hexI = 30;
+				
+			function init()
+			{
+				update_data();
+				generate_hexgrid();
+				generate_hexgrid_representations();
+			};
+			
+			
+			function update_data()
+			{
+				var mean = 300,
+					std = 50,
+					i = -1;
+				
+				while (++i < numPoints)
+				{
+					data.push( {
+						x 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean ),
+						y 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean )
+					});
+				}
+			};
+			
+			function generate_hexgrid()
+			{
+				hexset = d3.layout.hexbin()
+				/*
+					.xRange( [0,600] )
+					.yRange( [0,600] ) */
+					.xValue( function(d) { return d.x; } )
+					.yValue( function(d) { return d.y; } )
+					.hexI( hexI )
+						( data );
+						
+				countMax = d3.max( hexset, function(d) { return d.data.length; } )
+				xMin = d3.min( data, function(d) { return d.x; } ),
+				yMax = d3.max( data, function(d) { return d.y; } );				
+			}
+			
+			function generate_hexgrid_representations()
+			{
+				draw_scatterplot();
+				draw_proportional_representation();
+				draw_choropleth_representation();
+				draw_redundant_representation();
+				draw_vba_representation();
+			};
+			
+			function draw_scatterplot()
+			{
+				// visualization -- will hold all graphics
+				var viz = d3.select( "div#scatterplot" )
+					.append( "svg:svg" );
+					
+				// grid 
+				viz.append( "svg:g" )
+					.attr( "class", "grid" )
+					.selectAll( "polygon" )
+					.data( hexset )
+					.enter().append( "svg:polygon" )
+						.attr( "class", "hexagon" )
+						.attr( "stroke", "#09c" )
+						.attr( "fill", function(d) { return "#0f0"; })
+						.attr( "points", function(d) { return d.pointString; } )
+						.on( "mouseover", function(d) { console.log('boo: ' + d.data.length); });
+						
+				// scatterplot
+				viz.append( "svg:g" )
+					.attr( "class", "scatterplot" )		
+					.selectAll( "circle" )
+   					.data( data )
+   					.enter().append( "svg:circle" )
+   						.attr( "cx", function(d) { return d.x; } )
+   						.attr( "cy", function(d) { return d.y; } )
+   						.attr( "r", 2 );
+   			};
+   			
+   			function draw_proportional_representation()
+   			{
+   				var viz = d3.select( "div#proportionalHexgrid" )
+   					.append( "svg:svg" );
+   					
+   				viz.append( "svg:g" )
+   					.attr( "class", "grid" )
+   					.selectAll( "polygon" )
+   					.data( hexset )
+   					.enter().append( "svg:polygon" )
+   						.attr( "class", "hexagon" )
+   						.attr( "stroke", "#000" )
+   						.attr( "stroke-width", function(d)
+   						{
+   							var scale = d.data.length / countMax,
+   								thick = 1 * 1/scale;
+   							
+   							return thick + "px";
+   						} )
+   						.attr( "fill", "#000" )
+   						.attr( "points", function(d) { return d.pointString; } )
+   						.attr( "transform", function(d)
+						{
+							var scale = d.data.length / countMax,
+								centroid = d.centre(),
+								
+								x = xMin + ( centroid.x * hexI - (.5*hexI) ),
+								y = yMax - ( centroid.y * hexI - (.5*hexI) );
+							
+							var tString = 	"translate(" + x + "," + y + ") " +
+											"scale(" + scale + " " + scale + ") " +
+											"translate(" + -x + "," + -y + ")";
+														
+							return tString;
+						});
+   						
+   			}
+   			
+   			function draw_choropleth_representation()
+   			{
+   				scale = d3.scale.quantize()
+   					.domain( [0,countMax] )
+   					.range( d3.range( numClasses) );
+   				
+   				var viz = d3.select( "div#choroplethHexgrid" )
+   					.append( "svg:svg" );
+   					
+   				viz.append( "svg:g" )
+   					.attr( "class", cbScheme + " stroke-true" )
+   					.selectAll( "polygon" )
+   					.data( hexset )
+   					.enter().append( "svg:polygon" )
+   						.attr( "class", function(d)
+   						{
+   							return 'q' + ( (numClasses-1) - scale(d.data.length)) + "-" + numClasses;
+   						})
+   						.attr( "points", function(d) { return d.pointString; } );
+   			}
+   			
+   			function draw_redundant_representation()
+   			{
+   				var viz = d3.select( "div#redundantHexgrid" )
+   					.append( "svg:svg" );
+   					
+   				viz.append( "svg:g" )
+   					.attr( "class", "PuBu" )
+   					.selectAll( "polygon" )
+   					.data( hexset )
+   					.enter().append( "svg:polygon" )
+   						.attr( "class", function(d)
+   						{
+   							return 'q' + scale(d.data.length) + "-" + numClasses;
+   						})
+   						.attr( "points", function(d) { return d.pointString; } )
+   						.attr( "stroke", "#ddd" )
+   						.attr( "stroke-width", function(d)
+   						{
+   							var scale = d.data.length / countMax,
+   								thick = 1 * 1/scale;
+   							
+   							return thick + "px";
+   						} )
+   						.attr( "transform", function(d)
+						{
+							var scale = d.data.length / countMax,
+								centroid = d.centre(),
+								x = xMin + ( centroid.x * hexI - (.5*hexI) ),
+								y = yMax - ( centroid.y * hexI - (.5*hexI) )
+							
+							var tString = 	"translate(" + x + "," + y + ") " +
+											"scale(" + scale + " " + scale + ") " +
+											"translate(" + -x + "," + -y + ")";
+														
+							return tString;
+						});
+   			}
+   			
+   			function draw_vba_representation()
+   			{
+   				var viz = d3.select( "div#vbaHexgrid" )
+   					.append( "svg:svg" );
+   					
+   				viz.append( "svg:g" )
+   					.attr( "class", "BuPu" )
+   					.selectAll( "polygon" )
+   					.data( hexset )
+   					.enter().append( "svg:polygon" )
+   						.attr( "fill-opacity", function(d)
+   						{
+   							var opacity = ((numClasses-1)- scale(d.data.length)) / (numClasses-1);
+   							return opacity;
+   						} )
+   						.attr( "points", function(d) { return d.pointString; } );
+   			}
+   			
+			
+		</script>
+	</head>
+	
+	<body onload="init();">
+		<h1>Hexagonal binning layout in d3.js</h1>
+		
+		<div id="scatterplot" class="chart"></div>
+		<p class="caption">2000 random (though centrally-skewed) data-points plotted atop a uniform hexagonal grid or lattice</p>
+		
+		<div id="proportionalHexgrid" class="chart"></div>	
+		<p class="caption">the same points above binned to hexagons and represented proportionally</p>	
+		
+		<div id="choroplethHexgrid" class="chart"></div>
+		<p class="caption">using a 9-class choropleth scheme to represent the point density by hexagon</p>
+		
+		<div id="redundantHexgrid" class="chart"></div>
+		<p class="caption">a bit of redundant symbolization, as both color/value and size represent the point density. Either size or color could alternatively represent another attribute</p>
+		
+		<div id="vbaHexgrid" class="chart"></div>
+		<p class="caption">a value-by-alpha hexgrid of point density atop a Google hybrid map</p>
+
+	</body>
+</html>

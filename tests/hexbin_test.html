@@ -1,0 +1,212 @@
+<html>
+	<head>
+		<title>Hexagonal tiling example in d3.js</title>
+		
+		<link rel="stylesheet" type="text/css" href="../style/main.css" />
+		<script type="text/javascript" src="../lib/d3.js"></script>
+		<script type="text/javascript" src="../lib/hex.js"></script>
+		
+		<script type="text/javascript">
+			var size 		= 600,
+				data 		= null,
+				padding 	= 20,
+				grid 		= null,
+				numPoints 	= 10000,
+				overHex 	= null,
+				hexset 		= null,
+				xScale		= null,
+				yScale 		= null,
+				hexI   		= 20,
+				color 		= d3.interpolateRgb("#fff", "#c09")
+				maxCount	= 0;
+				
+			function init()
+			{
+				create_viz();
+				create_hexes();
+				update_data();
+				bin_data();
+				draw_hexes();
+				// draw_scatterplot();
+			};
+			
+			function create_viz()
+			{
+				// visualization -- will hold all graphics
+				var viz = d3.select( "div#viz" )
+					.append( "svg:svg" );
+				
+				// border
+				viz.append( "svg:rect" )
+					.attr( "x", padding )
+					.attr( "y", padding )
+					.attr( "id", "scatterFrame" )
+					.attr( "width", size )
+					.attr( "height", size )
+					.attr( "fill", "none" );
+				
+				// scatterplot
+				viz.append( "svg:g" )
+					.attr( "class", "scatterplot" )
+					.attr( "transform", "translate(" + padding + "," + padding + ")" );
+						
+				// grid 
+				viz.append( "svg:g" )
+					.attr( "class", "grid" )
+					.attr( "transform", "translate(" + padding + "," + padding + ")" );
+						
+				
+			};
+			
+			function update_data()
+			{
+				data = [];
+				
+				var mean = 500;
+				var std = 100;
+				
+				for ( var i=0 ; i<numPoints ; i++ )
+				{
+					data.push( {
+						x : Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean ),
+						y : Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean )
+					});
+				}
+				
+				var minX = d3.min( data, function(d) { return d.x; } );
+				var maxX = d3.max( data, function(d) { return d.x; } );
+				var minY = d3.min( data, function(d) { return d.y; } );
+				var maxY = d3.max( data, function(d) { return d.y; } );
+				
+				var rangeX = maxX - minX;
+				var rangeY = maxY - minY;
+				
+				// we need to make rangeX === rangeY, if you know what I mean
+				
+				if ( rangeX > rangeY )
+				{
+					var diff = rangeX - rangeY;
+					minY -= .5 * diff;
+					maxY += .5 * diff;
+				}
+				else if ( rangeY > rangeX )
+				{
+					var diff = rangeY - rangeX;
+					minX -= .5 * diff;
+					maxX += .5 * diff;
+				}
+				
+				xScale = d3.scale.linear()
+					.domain( [ minX, maxX ] ).range( [ 0, size ] );
+					
+				yScale = d3.scale.linear()
+					.domain( [ maxY, minY ] ).range( [ 0, size ] );
+			};
+			
+			function bin_data()
+			{
+				var d, pt, hex;
+				
+				for ( var i=0; i<data.length; i++ )
+				{ 
+					d = data[ i ];
+					pt = new HEX.Point( 
+						( xScale( d.x ) + (.5 * hexI) ) / hexI , 
+						( yScale( d.y ) + (.5 * hexI) ) / hexI 
+					);
+					
+					console.log(pt);
+					hex = grid.hex( pt );		
+					
+					hex.points.push( d );
+				}
+				
+				// now figure min and max for the bins
+				maxCount = d3.max( hexset, function( d ) 
+				{
+					return d.points ? d.points.length : 0;
+				});
+			};
+			
+			function draw_scatterplot()
+			{
+				var scatterplot = d3.select( "g.scatterplot" );
+   				
+   				scatterplot.selectAll( "circle" )
+   					.data( data )
+   					.enter().append( "svg:circle" )
+   						.attr( "cx", function(d) { return xScale( d.x ); } )
+   						.attr( "cy", function(d) { return yScale( d.y ); } )
+   						.attr( "r", 2 );
+   			};
+			
+			function create_hexes()
+			{
+				var rows = Math.round( size / (HEX.J * hexI) ) + 1, 
+					cols = Math.round( size / hexI ) + 1,
+					hex;
+				grid = new HEX.Grid( cols, rows );
+				hexset = [];
+				
+				// now let's add all the hexes in the grid to the set
+				for ( var i = 0; i < cols; i++ )
+				{
+					for ( var j = 0; j < rows; j++ )
+					{
+						hex = grid.hex( i, j );
+						hex.points = [];
+						
+						HEX.set_insert( hexset, hex );
+					}
+				}
+			};
+			
+			function draw_hexes()
+			{
+				var hexGrid = d3.select( "g.grid" );
+				
+				hexGrid.selectAll( "polygon" )
+					.data( hexset )
+					.enter().append( "svg:polygon" )
+						.attr( "class", "hexagon" )
+						.attr( "id", function(d) { return 'hex_' + d.toString(); } )
+						.attr( "fill", function(d) 
+						{ 
+							var val = d.points ? d.points.length : 0;
+							return color( val / maxCount );
+						} )
+						.attr( "stroke", function(d) {
+							var val = d.points ? d.points.length : 0;
+							return ( val < 3 ) ? "none" : "#fff";
+						} )
+						.attr( "points", function( d ) {
+							// move to
+							var dir = HEX.A, 
+								pt = d.edge( dir ).start_point(), 
+								x = pt.x * hexI - .5 * hexI, 
+								y = size - pt.y * hexI + .5 * hexI,
+								i = -1;
+							var pointString = x + ',' + y;
+							
+							// line to's
+							while ( ++i < HEX.DIRECTIONS.length )
+							{
+								dir = HEX.DIRECTIONS[ i ];
+								pt = d.edge( dir ).end_point(), 
+								x = pt.x * hexI - .5 * hexI, 
+								y = size - pt.y * hexI + .5 * hexI;
+								pointString += " " + x + ',' + y;
+							}
+							
+							return pointString;
+						});
+			};
+			
+		</script>
+	</head>
+	
+	<body onload="init();">
+		<h1>Hexagonal tiling example in d3.js</h1>
+		<div id="viz"></div>		
+	</body>
+</html>

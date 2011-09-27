@@ -1,0 +1,46 @@
+body {
+	font-family: sans-serif;
+}
+
+rect#scatterFrame {
+	stroke: #999;
+	stroke-width: 1;
+}
+
+circle {
+	fill: #f00;
+	fill-opacity: 1;
+}
+
+text.yLabel, text.xLabel {
+	font-size: 12px;
+}
+
+div.chart {
+	height: 600px;
+	width: 600px;
+	
+	border: 2px solid;
+	margin-top: 15px;
+}
+
+div#vbaHexgrid {
+	background: url(map.png);
+}
+
+span#gridX {
+	margin-right: 20px;
+}
+
+h3#mouseCoordinates, h3#gridCoordinates {
+	float: left;
+	width: 200px;
+}
+
+p.caption {
+	font-style: italic;
+	
+	margin-left: 5px;
+	margin-top: 5px;
+	margin-bottom: 5px;
+}

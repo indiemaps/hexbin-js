@@ -1,0 +1,360 @@
+<html>
+	<head>
+		<title>Hexagonal tiling example in d3.js</title>
+		
+		<link rel="stylesheet" type="text/css" href="../style/main.css" />
+		<script type="text/javascript" src="../lib/d3.js"></script>
+		
+		<script type="text/javascript">
+			
+			var size 			= 600,
+				numPoints 		= 1000,
+				data 			= null,
+				padding			= 50,
+				numGridLines 	= 8,
+				tileHeight 		= 50,
+				cos30 			= Math.cos( 30 * Math.PI / 180 );
+				
+				
+			function init()
+			{				
+				updateData();
+				createViz();
+				createHexGrid();
+				createScatterplot();
+			}
+			
+			function updateData()
+			{
+				data = [];
+				
+				var mean = 500;
+				var std = 100;
+				
+				for ( var i=0 ; i<numPoints ; i++ )
+				{
+					data.push( {
+						x : Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean ),
+						y : Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean )
+					});
+				}
+			}
+			
+			function createViz()
+			{
+				var viz = d3.select( "div#viz" )
+					.append( "svg:svg" );
+					
+				viz.append( "svg:rect" )
+					.attr( "x", padding )
+					.attr( "y", padding )
+					.attr( "id", "scatterFrame" )
+					.attr( "width", size )
+					.attr( "height", size )
+					.attr( "fill", "none" );
+			};
+			
+			function createScatterplot()
+			{
+				// scales
+				var minX = d3.min( data, function( d ) { return d.x; } );
+				var maxX = d3.max( data, function( d ) { return d.x; } );
+				var minY = d3.min( data, function( d ) { return d.y; } );
+				var maxY = d3.max( data, function( d ) { return d.y; } );
+				
+				var min = Math.min( minX, minY );	
+				var max = Math.max( maxX, maxY );
+				
+				var xScale = d3.scale.linear()
+					.domain( [ min, max ] ).range( [ 0, size ] );
+					
+				var yScale = d3.scale.linear()
+					.domain( [ max, min ] ).range( [ 0, size ] );
+				
+				// grid 
+				var grid = d3.select( "div#viz" ).select( "svg" )
+					.append( "svg:g" )
+						.attr( "class", "grid" )
+						.attr( "transform", "translate(" + padding + "," + padding + ")" );
+								
+				
+				grid.selectAll( "line.gridX" )
+					.data( xScale.ticks( numGridLines ) )
+					.enter().append( "svg:line" )
+						.attr( "class", "gridX" )
+						.attr( "x1", xScale )
+						.attr( "x2", xScale )
+						.attr( "y1", size+1 )
+						.attr( "y2", size+4 )
+						.attr( "stroke", "#000" );
+						
+				grid.selectAll( "line.gridY" )
+					.data( yScale.ticks( numGridLines ) )
+					.enter().append( "svg:line" )
+						.attr( "class", "gridY" )
+						.attr( "x1", -4 )
+						.attr( "x2", -1 )
+						.attr( "y1", yScale )
+						.attr( "y2", yScale )
+						.attr( "stroke", "#000" );
+						
+				// labels
+				var labels = d3.select( "div#viz" ).select( "svg" )
+					.append( "svg:g" )
+						.attr( "class", "labels" )
+						.attr( "transform", "translate(" + padding + "," + padding + ")" );
+						
+				labels.selectAll( "text.xLabel" )
+					.data( xScale.ticks( numGridLines ) )
+					.enter().append( "svg:text" )
+						.attr( "class", "xLabel" )
+						.attr( "x", xScale )
+						.attr( "y", size )
+						.attr( "dy", 15 )
+						.attr( "text-anchor", "middle" )
+						.text( String );
+				
+				labels.selectAll( "text.yLabel" )
+					.data( yScale.ticks( numGridLines ) )
+					.enter().append( "svg:text" )
+						.attr( "class", "yLabel" )
+						.attr( "x", 0 )
+						.attr( "y", yScale )
+						.attr( "dx", -5 )
+						.attr( "dy", 5 )
+						.attr( "text-anchor", "end" )
+						.text( String );
+				
+							
+				// select
+				var scatterplot = d3.select( "div#viz" ).select( "svg" )
+					.append( "svg:svg" )
+						.attr( "id", "scatterplot" )
+						.attr( "width", size )
+						.attr( "height", size )
+						.attr( "x", padding )
+						.attr( "y", padding );
+								
+				// enter
+				scatterplot.selectAll( "circle" )
+					.data( data )
+					.enter().append( "svg:circle" )
+						.attr( "cx", function( d ) { return xScale( d.x ); } )
+						.attr( "cy", function( d ) { return yScale( d.y ); } )
+						.attr( "r", 2 ); 				
+			};
+			
+			function createHexGrid()
+			{
+				var tileSize = tileHeight / cos30 / 2;
+				
+				var numRows = Math.ceil( size / tileHeight ) + 1;
+				var numCols = Math.ceil( size / ( tileSize * 1.5 ) );
+				
+				var hexData = [];
+				for ( var y = -1; y < numRows; y++ )
+				{
+					hexData.push( [] );
+					var row = hexData[hexData.length - 1];
+					for ( var x = -1; x < numCols; x++ )
+					{
+						if ( y==-1 && x%2 == 0 ) continue;
+						if ( y==-1 && x==-1 ) continue;
+						if ( y==(numRows-1) && x!=-1 ) continue;
+						
+						row.push( {
+							x : x,
+							y : y,
+							density : 0
+						});
+					}
+				}
+								
+				var hexGrid = d3.select( "div#viz" ).select( "svg" )
+					.append( "svg:g" )
+						.attr( "class", "hexGrid" )
+						.attr( "transform", "translate(" + padding + "," + padding + ")" );
+				
+				hexGrid.selectAll( "g" )
+					.data( hexData )
+					.enter().append( "svg:g" )
+					.selectAll( "polygon" )
+						.data( function( d ) { return d; } )
+						.enter().append( "svg:polygon" )
+							.attr( "points", function() { 
+								var hexString = "0," + .5 * tileHeight + ' ' + 
+												( ( tileSize * 2 - tileSize ) * .5 ) + ',0 ' + 
+												( ( tileSize * 2 - tileSize ) * .5 + tileSize ) + ',0 ' +
+												( tileSize * 2 ) + ',' + .5 * tileHeight + ' ' +
+												( ( tileSize * 2 - tileSize ) * .5 + tileSize ) + ',' + tileHeight + ' ' +
+												( ( tileSize * 2 - tileSize ) * .5 ) + ',' + tileHeight;
+								
+								return hexString;
+							} )
+							.attr( "transform", function(d){
+								return "translate(" + (d.x * tileSize * 1.5) + "," + ( d.y * tileHeight + (d.x % 2) * tileHeight / 2 ) + ")";
+							} )
+							.attr("stroke", "#f00" )
+							.attr("fill", "none" )
+							.attr("id", function(d) { return "x"+d.x+"y"+d.y; } );									
+				
+			};
+			
+			function updateScatterplot()
+			{
+				// scales
+				var minX = d3.min( data, function( d ) { return d.x; } );
+				var maxX = d3.max( data, function( d ) { return d.x; } );
+				var minY = d3.min( data, function( d ) { return d.y; } );
+				var maxY = d3.max( data, function( d ) { return d.y; } );
+				
+				var min = Math.min( minX, minY );	
+				var max = Math.max( maxX, maxY );
+				
+				var xScale = d3.scale.linear()
+					.domain( [ min, max ] ).range( [ 0, size ] );
+					
+				var yScale = d3.scale.linear()
+					.domain( [ max, min ] ).range( [ 0, size ] );
+				
+				
+				// grid 
+				var grid = d3.select( "div#viz" ).select( "svg" ).select( "g.grid" );	
+				
+				// select / data
+				var gridXLines = grid.selectAll( "line.gridX" )
+					.data( xScale.ticks( numGridLines ) );
+					
+				// update
+				gridXLines
+					.attr( "x1", xScale )
+					.attr( "x2", xScale );
+					
+				// enter
+				gridXLines.enter().append( "svg:line" )
+					.attr( "class", "gridX" )
+					.attr( "x1", xScale )
+					.attr( "x2", xScale )
+					.attr( "y1", size+1 )
+					.attr( "y2", size+4 )
+					.attr( "stroke", "#000" );
+					
+				// exit
+				gridXLines.exit().remove();
+				
+				// select / data
+				var gridYLines = grid.selectAll( "line.gridY" )
+					.data( yScale.ticks( numGridLines ) );
+					
+				// update
+				gridYLines
+					.attr( "y1", yScale )
+					.attr( "y2", yScale );
+				
+				// enter
+				gridYLines.enter().append( "svg:line" )
+					.attr( "class", "gridY" )
+					.attr( "x1", -4 )
+					.attr( "x2", -1 )
+					.attr( "y1", yScale )
+					.attr( "y2", yScale )
+					.attr( "stroke", "#000" );
+					
+				// exit
+				gridYLines.exit().remove();
+				
+				
+				// labels
+				var labels = d3.select( "div#viz" ).select( "svg" ).select( "g.labels" );
+				
+				// select
+				var xLabels = labels.selectAll( "text.xLabel" )
+					.data( xScale.ticks( numGridLines ) );
+				
+				// update
+				xLabels
+					.attr( "x", xScale )
+					.text( String );
+				
+				// enter
+				xLabels.enter().append( "svg:text" )
+					.attr( "class", "xLabel" )
+					.attr( "x", xScale )
+					.attr( "y", size )
+					.attr( "dy", 15 )
+					.attr( "text-anchor", "middle" )
+					.text( String );
+					
+				// exit
+				xLabels.exit().remove();
+						
+				// select
+				var yLabels = labels.selectAll( "text.yLabel" )
+					.data( yScale.ticks( numGridLines ) );
+				
+				// update
+				yLabels
+					.attr( "y", yScale )
+					.text( String );
+					
+				// enter
+				yLabels.enter().append( "svg:text" )
+					.attr( "class", "yLabel" )
+					.attr( "x", 0 )
+					.attr( "y", yScale )
+					.attr( "dx", -5 )
+					.attr( "dy", 5 )
+					.attr( "text-anchor", "end" )
+					.text( String );
+					
+				yLabels.exit().remove();
+						
+				
+				
+				// select
+				var scatterplot = d3.select( "div#viz" ).select( "svg" ).selectAll( "circle" )
+					.data( data );
+					
+				// update
+				scatterplot
+					.attr( "cx", function( d ) { return xScale( d.x ); } )
+					.attr( "cy", function( d ) { return yScale( d.y ); } );
+					
+				
+			};
+			
+			function onRandomizeClick()
+			{
+				updateData();
+				updateScatterplot();
+			};
+			
+			function onMouseMove( event )
+			{
+				d3.select( "div#viz" ).select( "svg" ).select( "g.hexGrid" ).selectAll( "polygon" )
+					.attr( "fill", "none" );
+					
+				var tileSize = tileHeight / cos30 / 2;
+				
+				var gridX = Math.floor( ( event.offsetX - padding ) / ( tileSize ) / 1.5 );
+				var gridY = Math.floor( ( ( event.offsetY - padding ) - ( gridX % 2 ) * ( tileHeight / 2 ) ) / tileHeight );
+				
+				d3.select( "div#viz" ).select( "svg" ).select( "g.hexGrid" ).select( "polygon#x" + gridX + "y" + gridY )
+					.attr( "fill", "#f00" );
+				
+				d3.select( "div#mouseLocation" ).select( "span#gridX" ).text( gridX );
+				d3.select( "div#mouseLocation" ).select( "span#gridY" ).text( gridY );
+			};
+			
+		</script>
+		
+	</head>
+	
+	
+	<body onload="init();">
+		<h1>Hexagonal tiling example in d3.js</h1>
+		<button onclick="onRandomizeClick();">Randomize!</button>
+		<div id="viz" onmousemove="onMouseMove( event );"></div>
+		<div id="mouseLocation">X: <span id="gridX">n/a</span> Y: <span id="gridY">n/a</span></div>
+	</body>
+</html>
