@@ -43,10 +43,22 @@
 				
 				while (++i < numPoints)
 				{
-					data.push( {
-						x 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean ),
-						y 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean )
-					});
+					if ( i < (.15 * numPoints ) )
+					{
+						data.push( {
+							x 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean ),
+							y 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean )
+						});
+					}
+					
+					else
+					
+					{
+						data.push( {
+							x : Math.random() * size,
+							y : Math.random() * size
+						});
+					}
 				}
 			};
 			
