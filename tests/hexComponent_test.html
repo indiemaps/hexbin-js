@@ -43,7 +43,7 @@
 				
 				while (++i < numPoints)
 				{
-					if ( i < (.15 * numPoints ) )
+					if ( i < (.55 * numPoints ) )
 					{
 						data.push( {
 							x 	: Math.round( (( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 ) + ( Math.random() * 2 - 1 )) * std + mean ),
@@ -159,20 +159,19 @@
    				scale = d3.scale.quantize()
    					.domain( [0,countMax] )
    					.range( d3.range( numClasses) );
-   				
-   				var viz = d3.select( "div#choroplethHexgrid" )
-   					.append( "svg:svg" );
-   					
-   				viz.append( "svg:g" )
-   					.attr( "class", cbScheme + " stroke-true" )
-   					.selectAll( "polygon" )
-   					.data( hexset )
-   					.enter().append( "svg:polygon" )
-   						.attr( "class", function(d)
-   						{
-   							return 'q' + ( (numClasses-1) - scale(d.data.length)) + "-" + numClasses;
-   						})
-   						.attr( "points", function(d) { return d.pointString; } );
+   				   				
+   				d3.select( "div#choroplethHexgrid" )
+   					.append( "svg:svg" )
+   						.append( "svg:g" )
+   							.attr( "class", cbScheme + " stroke-true" )
+		   					.selectAll( "polygon" )
+		   					.data( hexset )
+		   					.enter().append( "svg:polygon" )
+		   						.attr( "class", function(d)
+		   						{
+		   							return 'q' + ( (numClasses-1) - scale(d.data.length)) + "-" + numClasses;
+		   						})
+		   						.attr( "points", function(d) { return d.pointString; } );
    			}
    			
    			function draw_redundant_representation()
