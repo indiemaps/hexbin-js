@@ -1,15 +1,19 @@
+/**
+ * d3.layout.hexbin
+ * 
+ * by Zachary Forest Johnson
+ * indiemaps.com/blog
+ * 
+ * 
+ * hexbinning for javascript
+ * requires Alex Tingle's hex.js and Mike Bostock's D3.js
+ * 
+ */
+
 (function(){ 
 	
 if ( !d3.layout ) d3.layout = {};
 
-/**
- * 
- * param data
- * 
- * return array with properties
- * [ 'points', 'i', 'j', 'data' ]
- * 
- */
 d3.layout.hexbin = function()
 {
 	// set any constants here
@@ -19,6 +23,13 @@ d3.layout.hexbin = function()
 		yRanger = d3_layout_hexbinRange,
 		hexI = null; // Distance between centres of adjacent hexes.
 	
+	/**
+	 * @constructor
+	 * @param data An array of 2d points
+	 * 
+	 * @returns An array of hex objects, with important properties, including data and pointString
+	 * 
+	 */
 	function hexbin( data ) 
 	{
 		var xValues = data.map(xValuer, this),
@@ -70,8 +81,10 @@ d3.layout.hexbin = function()
 		return hexset;
 	}
 	
-	// Specifies how to extract the _x_ or _horizontal_ value from the associated data. The default
-  	// value function extracts the 'x' property of the data object.
+	/*
+	 * Specifies how to extract the _x_ or _horizontal_ value from the associated data. The default
+	 * value function extracts the 'x' property of the data object.
+	 */
 	hexbin.xValue = function( xAccessor )
 	{
 		if (!arguments.length) return xValuer;
@@ -79,8 +92,10 @@ d3.layout.hexbin = function()
     	return hexbin;
 	}
 	
-	// Specifies how to extract the _y_ or _vertical_ value from the associated data. The default
-  	// value function extracts the 'y' property of the data object.
+	/**
+	 * Specifies how to extract the _y_ or _vertical_ value from the associated data. The default
+  	 * value function extracts the 'y' property of the data object.
+	 */
 	hexbin.yValue = function( yAccessor )
 	{
 		if (!arguments.length) return yValuer;
@@ -88,12 +103,17 @@ d3.layout.hexbin = function()
     	return hexbin;
 	}
 	
-	// Specifies the horizontal range of the hexbins. Values outside the specified range
-  	// will be ignored. The argument `x` may be specified either as a two-element
-  	// array representing the minimum and maximum value of the range, or as a
-  	// function that returns the range given the array of values and the current
-  	// index `i`. The default range is the extent (minimum and maximum) of the
-  	// xValues.
+	/**
+	 * Specifies the horizontal range of the hexbins. Values outside the
+	 * specified range
+	 * will be ignored. The argument `x` may be specified either as a
+	 * two-element array representing the minimum and maximum value of the
+	 * range, or as a
+	 * function that returns the range given the array of values and the
+	 * current index `i`. The default range is the extent (minimum and
+	 * maximum) of the
+	 * xValues.
+	 */
 	hexbin.xRange = function( x )
 	{
 		if (!arguments.length) return xRanger;
@@ -101,12 +121,16 @@ d3.layout.hexbin = function()
 		return hexbin;
 	}
 	
-	// Specifies the vertical range of the hexbins. Values outside the specified range
-  	// will be ignored. The argument `y` may be specified either as a two-element
-  	// array representing the minimum and maximum value of the range, or as a
-  	// function that returns the range given the array of values and the current
-  	// index `i`. The default range is the extent (minimum and maximum) of the
-  	// yValues.
+	
+	/**
+	 * Specifies the vertical range of the hexbins. Values outside the specified range
+	 * will be ignored. The argument `y` may be specified either as a two-element
+	 * array representing the minimum and maximum value of the range, or as a
+	 * function that returns the range given the array of values and the current
+	 * index `i`. The default range is the extent (minimum and maximum) of the
+	 * yValues.
+	 */
+	
 	hexbin.yRange = function( y )
 	{
 		if (!arguments.length) return yRanger;
@@ -114,8 +138,10 @@ d3.layout.hexbin = function()
 		return hexbin;
 	}
 	
-	// Specifies the distance between centers of adjacent hexes. The default hexI is 
-	// just set to a hard-coded value.
+	/**
+	 * Specifies the distance between centers of adjacent hexes. The default hexI is 
+	 * null so you better set it.
+	 */
 	hexbin.hexI = function( i )
 	{
 		if (!arguments.length) return hexI;
@@ -126,7 +152,9 @@ d3.layout.hexbin = function()
 	return hexbin;
 };
 
-// identical to d3_layout_histogramRange function
+/**
+ * identical to d3_layout_histogramRange function
+ */
 function d3_layout_hexbinRange(values) 
 {
   return [d3.min(values), d3.max(values)];
@@ -156,7 +184,6 @@ function d3_layout_hexbinGeneratePoints( d, hexI, xMin, yMax )
 }
 
 
-// get the graphics points needed to draw a hexagon
 function d3_layout_hexbinGeneratePointString( d, hexI, xMin, yMax )
 {
 	var dir = HEX.A, 
